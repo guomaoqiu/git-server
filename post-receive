@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+deploy_dir="/codedata/deploy"  #check out maindir or rsync dir 
+backup_dir="/codedata/bak/deploy" #before checkout or sync to remote product
+full_backup="/codedata/bak/full" #all full backup
+echo " ## rsync deploy dir is: ${deploy_dir}/`basename "$pwd" | sed s/\.git$//` ##"
+echo " ## muti file backup dir is: ${backup_dir}/`basename "$pwd" | sed s/\.git$//` ##"
+echo " ## project git db dir is: /codedata/gitdb/`basename "$pwd" | sed s/\.git$//` ##"
+while read oldrev newrev ref
+do
+  pwd=`pwd`
+  project=`basename "$pwd" | sed s/\.git$//`
+  echo "start full backup project `date`"
+  echo "tar -czf $full_backup/$project/`date +%Y%m%d%H%M`.tar.gz $deploy_dir/$project"
+  tar -czf $full_backup/$project/`date +%Y%m%d%H%M`.tar.gz $deploy_dir/$project 
+  echo "finish full backup project `date`" 
+  for i in `git diff $oldrev $newrev --name-only`
+  do
+    if [ ! -f $deploy_dir/$project/$i ] ;then
+       echo "$i is new file,no need backup." 
+    else
+      if [ -f $backup_dir/$project/`date +%Y%m%d%H%M`/$i ]; then
+         echo "$backup_dir/$project/`date +%Y%m%d%H%M`/$i have old bakcup file exist,will rename."
+         mv $backup_dir/$project/`date +%Y%m%d%H%M`/$i $backup_dir/$project/`date +%Y%m%d%H%M`/$i.`date +%Y%m%d%H%M`
+         cp $deploy_dir/$project/$i $backup_dir/project/`date +%Y%m%d%H%M`/$i
+         echo "$i"
+      else
+         mkdir -p $backup_dir/$project/`date +%Y%m%d%H%M`/`dirname $i`
+         cp $deploy_dir/$project/$i $backup_dir/$project/`date +%Y%m%d%H%M`/$i 
+        echo "$i"
+      fi
+    fi
+  done
+  git checkout -f
+done
